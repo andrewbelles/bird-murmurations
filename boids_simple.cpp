@@ -7,6 +7,9 @@
  */ 
 
 #include <chrono>
+#include <fstream>
+#include <iomanip>
+#include <stdexcept>
 #include <stop_token>
 #include <thread> 
 #include <condition_variable>
@@ -15,6 +18,8 @@
 #include <atomic> 
 #include <cmath> 
 #include <algorithm>
+#include <string> 
+#include <tuple> 
 
 using namespace std::chrono_literals;
 
@@ -111,15 +116,27 @@ private:
   std::condition_variable cv_; 
   std::atomic<size_t> epoch_{0};
 
+  std::ofstream log_;
+
 public: 
 
-  explicit Pool(size_t capacity=8) 
+  explicit Pool(const std::string& path, size_t capacity=8) 
     : capacity_(capacity), 
       bufr_{new Packet[capacity], new Packet[capacity]}, 
       widx_{0, 0},
       active_(0),
       count_{0, 0},
-      readers_{0, 0} {}
+      readers_{0, 0}
+  {
+    std::ios_base::openmode mode = std::ios::out | std::ios::trunc;
+    log_.open(path, mode);
+
+    if ( !log_ ) { 
+      throw std::runtime_error("failed to open log"); 
+    }
+
+    log_ << "epoch,agent,x,y,z,vx,vy,vz\n";
+  }
 
   ~Pool() {
     delete[] bufr_[0];
@@ -162,6 +179,17 @@ public:
       epoch_.fetch_add(1, std::memory_order_relaxed);
     }
     cv_.notify_all();
+
+    if ( n == agent_count ) {
+      size_t e = epoch_.load(std::memory_order_relaxed); 
+      log_ << std::setprecision(10);
+      for ( size_t i(0); i < n; i++) {
+        const auto& [id, pos, vel] = bufr_[prev][i];
+        log_ << e << ',' << +id << ','
+             << pos.x << ',' << pos.y << ',' << pos.z << ',' 
+             << vel.x << ',' << vel.y << ',' << vel.z << '\n';
+      }
+    }
   }
 
   std::pair<size_t, std::vector<Packet>> 
@@ -220,6 +248,12 @@ private:
     } 
     size_t n(state.size()); 
     
+    // no neighbors 
+    if ( n == 0) {
+      position_ = position_ + (dt * velocity_);
+      return; 
+    }
+
     // compute separation, alignment, and cohesion 
     vec3 s{0.0, 0.0, 0.0}, a{0.0, 0.0, 0.0}, c{0.0, 0.0, 0.0};
     for (auto& [pos, vel, dist] : state) {
@@ -249,7 +283,7 @@ public:
       pool_(pool) {}
 
   void 
-  run(std::stop_token& st) 
+  run(std::stop_token st) 
   {
     size_t seen = 0; 
     while ( !st.stop_requested() ) {
@@ -267,9 +301,24 @@ public:
 };
 
 
-int main(void)
+int main(int argc, char* argv[])
 {
-  Pool pool(8);
+  constexpr auto duration = 10s; 
+
+  if ( argc > 2 ) {
+    std::cerr << "Invalid arg count. Usage: ./boids [data/datafile.csv]\n";
+    exit(1);
+  }
+
+  std::string path; 
+  if ( argc == 1) {
+    path = "data/datafile.csv";
+  } else {
+    path = argv[1];
+  }
+
+  Pool pool(path);
+  
   std::vector<SwarmAgent> agents;
   agents.reserve(8);
   
@@ -279,7 +328,7 @@ int main(void)
   std::cout << "[INIT] Agents Created\n";
 
   // create pool thread 
-  std::jthread pool_thread([&pool](std::stop_token& st) {
+  std::jthread pool_thread([&pool](std::stop_token st) {
     auto next = std::chrono::steady_clock::now(); 
     constexpr auto period = std::chrono::milliseconds(50);
     while ( !st.stop_requested() ) {
@@ -294,14 +343,17 @@ int main(void)
   std::vector<std::jthread> agent_threads; 
   agent_threads.reserve(8); 
   for (int i(0); i < 8; i++) {
-    agent_threads.emplace_back([&a = agents[i]](std::stop_token& st) {
+    agent_threads.emplace_back([&a = agents[i]](std::stop_token st) {
       a.run(st);
     });
   }
 
   std::cout << "[INIT] Agents Instantiated\n";
+  std::cout << "[SIMULATION] Starting Simulation\n";
 
-  std::this_thread::sleep_for(2s);
+  std::this_thread::sleep_for(duration);
+
+  std::cout << "[SIMULATION] Ended after " << duration << '\n';
 
   return 0; 
 }
