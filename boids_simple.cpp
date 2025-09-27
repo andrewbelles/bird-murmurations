@@ -1,14 +1,15 @@
 /*
- *
  * boids_simple.cpp  Andrew Belles  Sept 26th, 2025 
  *
  * Simple boids 2D simulation aiming to show independent agents communicating via mesh 
  * to determine alignment, cohesion, and separation benchmarks for linear case 
+ *
  */ 
 
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <random>
 #include <stdexcept>
 #include <stop_token>
 #include <thread> 
@@ -20,17 +21,21 @@
 #include <algorithm>
 #include <string> 
 #include <tuple> 
+#include <string>
+
+void parseArg(int argc, char* argv[], std::string* path);
 
 using namespace std::chrono_literals;
 
-constexpr double eps = 1e-9; 
-constexpr double dt  = 1e-3;
-constexpr double min_dist     = 0.3;
-constexpr double w_seperation = 1.5; 
-constexpr double w_alignment  = 1.0; 
-constexpr double w_cohesion   = 0.8;
-constexpr double max_accel    = 4.0; 
-constexpr double max_vel      = 2.0; 
+/************ default hyperparamters - can be adjusted ******/ 
+double eps = 1e-9; 
+double dt  = 1e-2;
+double min_dist     = 0.3;
+double w_seperation = 1.0; 
+double w_alignment  = 1.5; 
+double w_cohesion   = 1.0;
+double max_accel    = 5.0; 
+double max_vel      = 3.0; 
 
 struct vec3 {
   double x, y, z; 
@@ -91,13 +96,13 @@ struct vec3 {
 
 constexpr vec3 initials[8] = {
   {0.0, 0.0, 0.0},
-  {0.0, 9.0, 0.0},
-  {3.0, 3.0, 0.0},
-  {3.0, 6.0, 0.0},
-  {6.0, 3.0, 0.0},
+  {6.0, 0.0, 0.0},
+  {0.0, 6.0, 0.0},
   {6.0, 6.0, 0.0},
-  {9.0, 0.0, 0.0},
-  {9.0, 9.0, 0.0}
+  {0.0, 0.0, 6.0},
+  {6.0, 0.0, 6.0},
+  {0.0, 6.0, 6.0},
+  {6.0, 6.0, 6.0}
 };
 
 typedef uint16_t Agent; 
@@ -240,7 +245,7 @@ private:
 
       // cache l2 distance in state tuple 
       double l2_dist = vec3::L2(pos, position_);
-      if ( l2_dist > 5 ) {
+      if ( l2_dist > 15 ) {
         continue; 
       }
 
@@ -280,7 +285,13 @@ public:
     : id_(id),
       position_(x0),
       velocity_({0.0, 0.0, 0.0}),
-      pool_(pool) {}
+      pool_(pool) 
+    {
+      std::random_device dev; 
+      std::mt19937_64 rng(dev()); 
+      std::uniform_real_distribution<double> dist(-5.0, 5.0);
+      velocity_ = { dist(rng), dist(rng), dist(rng) };
+    }
 
   void 
   run(std::stop_token st) 
@@ -300,24 +311,14 @@ public:
   vec3 pos() const { return position_; }
 };
 
-
 int main(int argc, char* argv[])
 {
-  constexpr auto duration = 10s; 
+  constexpr auto duration = 20s; 
 
-  if ( argc > 2 ) {
-    std::cerr << "Invalid arg count. Usage: ./boids [data/datafile.csv]\n";
-    exit(1);
-  }
-
-  std::string path; 
-  if ( argc == 1) {
-    path = "data/datafile.csv";
-  } else {
-    path = argv[1];
-  }
-
+  std::string path;
+  parseArg(argc, argv, &path); 
   Pool pool(path);
+
   
   std::vector<SwarmAgent> agents;
   agents.reserve(8);
@@ -330,7 +331,7 @@ int main(int argc, char* argv[])
   // create pool thread 
   std::jthread pool_thread([&pool](std::stop_token st) {
     auto next = std::chrono::steady_clock::now(); 
-    constexpr auto period = std::chrono::milliseconds(50);
+    constexpr auto period = std::chrono::milliseconds(10);
     while ( !st.stop_requested() ) {
       pool.rotate(8);
       next += period; 
@@ -356,4 +357,40 @@ int main(int argc, char* argv[])
   std::cout << "[SIMULATION] Ended after " << duration << '\n';
 
   return 0; 
+}
+
+void 
+parseArg(int argc, char* argv[], std::string* path) 
+{
+  std::ifstream fptr; 
+
+  if ( argc != 3) {
+    std::cerr << "Invalid arg count. Usage: ./boids [inputs.txt] [data/datafile.csv]\n";
+    exit( 99 );
+  }
+
+  fptr = std::ifstream(argv[1]); 
+  if ( !fptr.is_open() ) {
+    std::cerr << "Invalid inputs file. Usage: ./boids [inputs.txt] [data/datafile.csv]\n";
+    exit( 99 );
+  }
+
+  auto read_param = [&fptr](double* x) {
+    std::string line; 
+    std::getline(fptr, line);
+    (*x) = std::stod(line);
+  };
+
+  read_param(&eps); 
+  read_param(&dt);
+  read_param(&min_dist);
+  read_param(&w_seperation);
+  read_param(&w_alignment);
+  read_param(&w_cohesion);
+  read_param(&max_accel);
+  read_param(&max_vel);
+
+  (*path) = argv[2];
+
+  fptr.close(); 
 }
