@@ -1,6 +1,6 @@
 # Bird Murmuration - A Drone Mimicking Approach 
 
-## Simple Simulation (`boids_simple.cpp`)
+## Simple Simulation (`simulations/boids_simple.cpp`)
 
 Relevant source files: 
 +`boids_simple.cpp`

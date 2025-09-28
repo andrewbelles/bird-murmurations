@@ -6,10 +6,6 @@
 # and simulation 
 #
 
-./compile.sh 
-
 ./boids inputs.txt data/file.csv  
-
-python sim_analysis.py --file data/file.csv 
-
+python analysis.py --file data/file.csv 
 python visualize.py --file data/file.csv

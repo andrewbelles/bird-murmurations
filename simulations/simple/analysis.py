@@ -14,6 +14,7 @@ from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 
 MIN_DIST = 2.2 
+NEIGHBOR_RANGE = 15 
 
 def clean(data: pd.DataFrame):
 
@@ -107,6 +108,20 @@ def separation(data: pd.DataFrame):
         "violation_rate": violation_rate
     }
 
+
+def cohesion(data: pd.DataFrame) -> pd.Series: 
+    
+    mean_point = data.groupby("epoch")[["x","y","z"]].mean() 
+    mean_l2    = (mean_point**2).sum(axis=1)
+
+    l2 = (data[["x", "y", "z"]]**2).sum(axis=1)
+    mean_of_l2 = l2.groupby(data["epoch"]).mean()
+
+    gyration = mean_of_l2 - mean_l2 
+    gyration.clip(lower=0.0, inplace=True)
+    return np.sqrt(gyration).rename("Rg")
+
+
 def main(): 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", required=True)
@@ -157,8 +172,8 @@ def main():
                                alpha=0.6, lw=1, label="violation rate")
     rax.set_ylabel("fraction below min_dist")
 
-    data = sep["minsep"].dropna(subset=["minsep"])
-    pivot = (data.pivot(index="epoch", columns="agent", values="minsep")
+    minsep_data = sep["minsep"].dropna(subset=["minsep"])
+    pivot = (minsep_data.pivot(index="epoch", columns="agent", values="minsep")
         .sort_index(axis=0)
         .sort_index(axis=1)
     )
@@ -190,6 +205,23 @@ def main():
     f.tight_layout() 
     f.savefig("separations.png")
     plt.close()  
+
+    Rg = cohesion(data)
+    Rg_norm = Rg / NEIGHBOR_RANGE 
+
+    f, ax = plt.subplots() 
+    Rg_norm.plot(ax=ax, lw=1.5, label="radius of gyration")
+
+    ax.set_title("Cohesion (radius of gyration)")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("radius of gyration (normalized - unit)")
+    ax.grid(alpha=0.25)
+
+    ax.legend(loc="upper right")
+    f.tight_layout()
+    f.savefig("cohesions.png")
+    plt.close() 
+    
 
 if __name__ == "__main__":
     main()

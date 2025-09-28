@@ -163,7 +163,7 @@ public:
   }
 
   void
-  rotate(int agent_count)
+  rotate(size_t agent_count)
   {
     int prev = active_.load(std::memory_order_relaxed);
     int next = 1 - prev; 
