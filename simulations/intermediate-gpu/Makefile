@@ -9,13 +9,10 @@
 .PHONY: all test clean 
 
 all: 
-	make -C simple 
-	make -C intermediate-gpu   
+	make -C grid 
 
 clean: 
-	make -C simple clean 
-	make -C intermediate-gpu clean 
+	make -C grid clean 
 
 test: 
-	make -C simple test 
-	make -C intermediate-gpu test  
+	make -C grid test 
