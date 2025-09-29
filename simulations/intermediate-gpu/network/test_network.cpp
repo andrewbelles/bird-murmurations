@@ -11,7 +11,7 @@
 #include "communication.cuh"
 
 #include <cmath>
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <vector> 
 #include <cassert> 
 #include <iostream> 
