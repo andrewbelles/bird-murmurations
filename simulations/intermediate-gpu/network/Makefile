@@ -2,13 +2,13 @@
 #
 # Makefile  Andrew Belles  Sept 28th, 2025 
 #
-# Makefile for SpatialGrid support module as well as unit test   
-# 
+# Compilation rules for all source files used for the communication 
+# network that agents utilize in simulation
 #
 
 CC    = nvcc 
 OBJS  = grid.o test_grid.o 
-FLAGS = -O3 -std=c++17 -lineinfo -Xcompiler -fPIC
+FLAGS = -O3 -std=c++17 -lineinfo -Xcompiler -fPIC -rdc=true --expt-extended-lambda 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
 
 .PHONY: all clean test 

@@ -1,6 +1,3 @@
-#ifndef __GRID_CUH 
-#define __GRID_CUH 
-
 /*
  *
  * grid.cuh  Andrew Belles  Sept 28th, 2025 
@@ -8,6 +5,9 @@
  * Defines the interface for spatial grid module that 
  * restricts communication range of agents in space 
  */ 
+
+#ifndef __GRID_CUH 
+#define __GRID_CUH 
 
 #include <cuda_runtime.h> 
 
