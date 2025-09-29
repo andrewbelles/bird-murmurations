@@ -9,10 +9,10 @@
 .PHONY: all test clean 
 
 all: 
-	make -C grid 
+	make -C network 
 
 clean: 
-	make -C grid clean 
+	make -C network clean 
 
 test: 
-	make -C grid test 
+	make -C network test 
