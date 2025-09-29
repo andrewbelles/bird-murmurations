@@ -6,6 +6,8 @@
 # and simulation 
 #
 
-./boids inputs.txt data/file.csv  
-python analysis.py --file data/file.csv 
-python visualize.py --file data/file.csv
+PYTHON=$(command -v python3 || command -v python)
+
+./boids inputs.txt data/file.csv
+$PYTHON analysis.py --file data/file.csv
+$PYTHON visualize.py --file data/file.csv

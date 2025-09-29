@@ -10,22 +10,30 @@ CC    = clang++
 OBJS  = boids.o 
 FLAGS = -Wall -Wextra -Werror -O3 -pedantic -std=c++20 -pthread -ggdb 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
+DATA := data
 
-.PHONY: all clean run 
+.PHONY: all clean run test remake
 
-all: $(OBJS)
+all: $(OBJS) | $(DATA)
 
-boids: boids.o 
+boids: boids.o | $(DATA)
 	$(CC) $(FLAGS) $^ -o $@ 
 
-boids.o: boids.cpp 
+boids.o: boids.cpp | $(DATA)
 	$(CC) $(FLAGS) -c $< -o $@ 
 
-test: boids 
-	$(VALGRIND) ./boids input.txt data/file.csv
+$(DATA):
+	mkdir -p $(DATA)
+
+test: boids | $(DATA)
+	$(VALGRIND) ./boids inputs.txt $(DATA)/file.csv
 
 run: boids 
 	./pipeline.sh
 
 clean: 
-	rm -f boids *.o 
+	rm -f boids *.o
+	rm -rf $(DATA)
+
+remake: clean all
+	@echo "Project cleaned and rebuilt successfully."
