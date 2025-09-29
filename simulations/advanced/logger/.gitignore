@@ -1,0 +1,3 @@
+*.bin
+*.o 
+logger_test

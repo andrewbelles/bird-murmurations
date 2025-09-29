@@ -9,7 +9,7 @@
 CC    = nvcc 
 OBJS  = logger.o test_logger.o 
 FLAGS = -O3 -std=c++17 
-CUDAFLAGS = -lineinfo -Xcompiler -fPIC -rdc=true --expt-extended-lambda
+CUDAFLAGS = -lineinfo -Xcompiler -fPIC -rdc=true --expt-extended-lambda -Xcompiler -pthread 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
 
 .PHONY: all clean test 
@@ -17,16 +17,16 @@ VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
 all: logger_test 
 
 logger_test: $(OBJS)
-	$(CC) $(FLAGS) $(CUDAFLAGS) $(OBJS) -o $@ -pthread
+	$(CC) $(FLAGS) $(CUDAFLAGS) $(OBJS) -o $@
 
 logger.o: logger.cu logger.cuh 
 	$(CC) $(FLAGS) $(CUDAFLAGS) -c $< -o $@
 
-test_logger.o: test_logger.cpp logger.cuh
+test_logger.o: test_logger.cu logger.cuh
 	$(CC) $(FLAGS) $(CUDAFLAGS) -c $< -o $@
 
 test: logger_test  
-	./logger_test 
+	./logger_test test.bin 
 
 clean: 
-	rm -f logger_test *.o 
+	rm -f logger_test *.o *.bin 

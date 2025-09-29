@@ -58,20 +58,4 @@ void enqueue_batch(Logger* logger, int slot_idx, uint32_t epoch_start);
 
 } // end namespace logio 
 
-namespace unit {
-
-__global__ void 
-fill_states(float3* pos, float3* vel, int N, uint32_t epoch)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x; 
-  if ( idx >= N ) {
-    return; 
-  }
-
-  pos[idx] = make_float3(float(epoch), float(idx), 1.0);
-  vel[idx] = make_float3(float(idx), float(epoch), -1.0);
-}
-
-}
-
 #endif // __LOGGER_CUH

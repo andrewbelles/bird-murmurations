@@ -82,10 +82,19 @@ void
 Logger::destroy()
 {
   if ( transfer_stream ) {
+    cudaStreamSynchronize(transfer_stream);
+  }
+
+  if ( w ) {
+    writer_stop(w);
+    w = nullptr;
+  }
+
+  if ( transfer_stream ) {
     cudaStreamDestroy(transfer_stream);
     transfer_stream = nullptr;
   }
-
+  
   if ( d_buffer ) {
     cudaFree(d_buffer); 
     d_buffer = nullptr; 
@@ -96,11 +105,6 @@ Logger::destroy()
       cudaFreeHost(buffer); 
       buffer = nullptr; 
     }
-  }
-  
-  if ( w ) {
-    writer_stop(w);
-    w = nullptr;
   }
 
   slots_busy[0].store(0); 
@@ -186,7 +190,7 @@ Logger::poll()
 {
   if ( slots_busy[0].load(std::memory_order_relaxed) ) {
     return 0; 
-  } else if ( slots_busy[0].load(std::memory_order_relaxed) ) {
+  } else if ( slots_busy[1].load(std::memory_order_relaxed) ) {
     return 1; 
   }
   return -1; 
@@ -265,15 +269,15 @@ writer_stop(Writer* w)
 }
 
 void 
-enqueue_batch(Writer* writer, Logger* logger, int slot_idx, uint32_t epoch_start)
+enqueue_batch(Logger* logger, int slot_idx, uint32_t epoch_start)
 {
   // safely enqueue data to be written out 
   {
-    std::lock_guard<std::mutex> lock(writer->m);
-    writer->q.push(Item{ logger, slot_idx, epoch_start });
+    std::lock_guard<std::mutex> lock(logger->w->m);
+    logger->w->q.push(Item{ logger, slot_idx, epoch_start });
   }
 
-  writer->cv.notify_all(); 
+  logger->w->cv.notify_all(); 
 }
 
 __global__ void 
