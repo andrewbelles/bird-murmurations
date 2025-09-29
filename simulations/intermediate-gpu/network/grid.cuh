@@ -10,6 +10,7 @@
 #define __GRID_CUH 
 
 #include <cuda_runtime.h> 
+#include <cmath>
 
 namespace grid {
 
@@ -44,14 +45,39 @@ struct SpatialGrid {
 };
 
 /********** device functions ****************************/ 
+
 // get cell id from position and cell resolution  
-__device__ inline int3 get_cell(const float3 position, const float cell_size);
+__device__ __forceinline__ int3 
+get_cell(const float3 position, const float cell_size)
+{
+  int3 cell; 
+#ifdef __CUDA_ARCH__ 
+  cell.x = __float2int_rd(position.x / cell_size);
+  cell.y = __float2int_rd(position.y / cell_size);
+  cell.z = __float2int_rd(position.z / cell_size);
+#else 
+  cell.x = static_cast<int>(floorf(position.x / cell_size));
+  cell.y = static_cast<int>(floorf(position.y / cell_size));
+  cell.z = static_cast<int>(floorf(position.z / cell_size));
+#endif 
+  return cell; 
+}
 
 // Generate an integer cell integer using cell id and total dims 
-__device__ inline int cell_to_index(const int3 cell, const int3 dims); 
+__device__ __forceinline__ int 
+cell_to_index(const int3 cell, const int3 dims)
+{
+  return cell.x + dims.x * (cell.y + dims.y * cell.z); 
+}
 
 // Simple check for an in bounds value 
-__device__ inline bool inBounds(const int3 cell, const int3 dims); 
+__device__ inline bool 
+inBounds(const int3 cell, const int3 dims)
+{
+  return (unsigned)cell.x < (unsigned)dims.x && 
+         (unsigned)cell.y < (unsigned)dims.y && 
+         (unsigned)cell.z < (unsigned)dims.z; 
+}
 
 /********** kernels *************************************/
 // clears grid 

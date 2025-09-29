@@ -9,7 +9,6 @@
 #ifndef __COMMUNICATION_CUH 
 #define __COMMUNICATION_CUH
 
-#include <__clang_cuda_runtime_wrapper.h>
 #include <cuda_runtime.h> 
 #include <cstdint> 
 #include "grid.cuh"
@@ -77,7 +76,7 @@ void neighbor_cell_iterator(int3 base, int3 dims, F&& fn)
 
 /*
  * Iterator per agent over radius of cells 
- * F:= __device__ bool fn(int neighbor, float l2);
+ * F:= __device__ bool fn(int neighbor);
  *
  */
 template<int R, class F>
@@ -93,7 +92,6 @@ int neighbor_agent_iterator(int self_id, float3 self_pos, float radius,
     return 0; 
   }
 
-  const float sq_radius = radius * radius;  // to register  
   const int3 base = grid::get_cell(self_pos, cell_size); 
   int consumed = 0; 
 
@@ -108,7 +106,7 @@ int neighbor_agent_iterator(int self_id, float3 self_pos, float radius,
         continue; 
       }
 
-      bool used = fn(j, -1.0); 
+      bool used = fn(j); 
 
       if ( used ) {
         if ( ++consumed >= budget ) {
@@ -128,7 +126,7 @@ __global__ void broadcast_positions(const float3* __restrict__ positions,
                                     const int* __restrict__ offsets, 
                                     const int* __restrict__ agents, 
                                     network::Mailbox inboxes, 
-                                    Parameters parames);
+                                    Parameters params);
 
 }
 

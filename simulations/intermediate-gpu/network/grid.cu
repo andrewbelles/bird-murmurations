@@ -145,41 +145,27 @@ SpatialGrid::build(const float3* positions, int N, cudaStream_t stream)
 void 
 SpatialGrid::destroy()
 {
-  cudaFree(agent_cell);
-  cudaFree(offsets);
-  cudaFree(counts);
-  cudaFree(agents);
-  cudaFree(cell_write_ptr);
+  if ( agent_cell ) {
+    cudaFree(agent_cell);
+    agent_cell = nullptr; 
+  } 
+  if ( offsets ) {
+    cudaFree(offsets);
+    offsets = nullptr; 
+  } 
+  if ( counts ) {
+    cudaFree(counts);
+    counts = nullptr; 
+  } 
+  if ( agents ) {
+    cudaFree(agents);
+    agents = nullptr; 
+  } 
+  if ( cell_write_ptr ) {
+    cudaFree(cell_write_ptr);
+    cell_write_ptr = nullptr; 
+  } 
 }
-
-/************ device functions ****************************/ 
-
-__device__ inline int3 
-get_cell(const float3 position, const float cell_size)
-{
-  int3 cell; 
-  cell.x = __float2int_rd(position.x / cell_size);
-  cell.y = __float2int_rd(position.y / cell_size);
-  cell.z = __float2int_rd(position.z / cell_size);
-  return cell; 
-}
-
-
-__device__ inline int 
-cell_to_index(const int3 cell, const int3 dims)
-{
-  return cell.x + dims.x * (cell.y + dims.y * cell.z); 
-}
-
-
-__device__ inline bool 
-inBounds(const int3 cell, const int3 dims)
-{
-  return (unsigned)cell.x < (unsigned)dims.x && 
-         (unsigned)cell.y < (unsigned)dims.y && 
-         (unsigned)cell.z < (unsigned)dims.z; 
-}
-
 
 /************ kernels *************************************/ 
 

@@ -7,25 +7,31 @@
 #
 
 CC    = nvcc 
-OBJS  = grid.o test_grid.o 
+OBJS  = grid.o mailbox.o communication.o test_network.o 
 FLAGS = -O3 -std=c++17 -lineinfo -Xcompiler -fPIC -rdc=true --expt-extended-lambda 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
 
 .PHONY: all clean test 
 
-all: grid_test 
+all: network_test 
 
-grid_test: $(OBJS)
+network_test: $(OBJS)
 	$(CC) $(FLAGS) $(OBJS) -o $@
 
 grid.o: grid.cu grid.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
-test_grid.o: test_grid.cpp grid.cuh 
+mailbox.o: mailbox.cu mailbox.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
-test: grid_test  
-	./grid_test 
+communication.o: communication.cu communication.cuh grid.cuh mailbox.cuh 
+	$(CC) $(FLAGS) -c $< -o $@
+
+test_network.o: test_network.cpp grid.cuh mailbox.cuh communication.cuh 
+	$(CC) $(FLAGS) -c $< -o $@
+
+test: network_test  
+	./network_test 
 
 clean: 
-	rm -f grid_test *.o 
+	rm -f network_test *.o 
