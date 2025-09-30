@@ -126,7 +126,7 @@ __global__ void broadcast_positions(const float3* __restrict__ positions,
                                     const int* __restrict__ offsets, 
                                     const int* __restrict__ agents, 
                                     network::Mailbox inboxes, 
-                                    Parameters params);
+                                    Parameters params, uint32_t* rng_state);
 
 }
 

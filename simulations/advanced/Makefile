@@ -10,9 +10,12 @@
 
 all: 
 	make -C network 
+	make -C logger 
 
 clean: 
 	make -C network clean 
+	make -C logger clean 
 
 test: 
 	make -C network test 
+	make -C logger test  

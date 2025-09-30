@@ -39,7 +39,7 @@ launch(const float3* positions, const float3* velocities, int N,
   // call to kernel 
   broadcast_positions<<<grid_size, block, 0, stream>>>(
     positions, velocities, N, grid.cell_size, grid.dims, grid.offsets, 
-    grid.agents, inboxes, params  
+    grid.agents, inboxes, params, nullptr 
   );
 
   return cudaPeekAtLastError();
@@ -68,7 +68,7 @@ broadcast_positions(const float3* __restrict__ positions,
                     const float3* __restrict__ velocities, int N, float cell_size, 
                     int3 dims, const int* __restrict__ offsets, 
                     const int* __restrict__ agents, 
-                    network::Mailbox inboxes, Parameters params)
+                    network::Mailbox inboxes, Parameters params, uint32_t* rng_state)
 {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x; 
   if ( idx >= N ) {
