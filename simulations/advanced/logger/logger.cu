@@ -17,6 +17,7 @@
 #include <condition_variable> 
 #include <queue> 
 #include <chrono> 
+#include <clocale> 
 
 namespace logio {
 
@@ -31,6 +32,9 @@ struct Writer {
   int N = 0; 
   int batch_size = 0; 
   size_t bytes_per_batch = 0; 
+
+  size_t rows_per_batch = 0; 
+  bool header_written = false; 
 
   std::mutex m; 
   std::condition_variable cv; 
@@ -199,6 +203,11 @@ Logger::poll()
 static void 
 writer_thread_fn(Writer* w)
 {
+  std::setlocale(LC_NUMERIC, "C");
+
+  std::string out; 
+  out.reserve(w->rows_per_batch * 128);
+
   while (true) {
     Item item; 
     
@@ -214,12 +223,31 @@ writer_thread_fn(Writer* w)
     }
 
     Logger* logger = item.logger; 
-    const void* src = logger->h_buffer[item.slot]; 
-    size_t wrote = std::fwrite(src, 1, w->bytes_per_batch, w->fp); 
-    if ( wrote != w->bytes_per_batch ) {
-      std::cerr << "writer fwrite\n"; 
+    const Snapshot* rows = reinterpret_cast<const Snapshot*>(
+        logger->h_buffer[item.slot]);
+
+    out.clear();
+    out.resize(0); 
+
+    char line[256];
+    for (size_t i = 0; i < w->rows_per_batch; i++) {
+      const Snapshot& snap = rows[i];
+      int n = std::snprintf(
+        line, sizeof(line),
+        "%u,%u,%.8g,%.8g,%.8g,%.8g,%.8g,%.8g\n",
+        snap.epoch, 
+        snap.agent_id, 
+        snap.pos.x, snap.pos.y, snap.pos.z,
+        snap.vel.x, snap.vel.y, snap.vel.z 
+      );
+      out.append(line, static_cast<size_t>(n));
     }
-  
+
+    size_t wrote = std::fwrite(out.data(), 1, out.size(), w->fp);
+    if ( wrote != out.size() ) {
+      std::cerr << "writer fwrite (csv) short write\n"; 
+    }
+
     logger->slots_busy[item.slot].store(0, std::memory_order_release);
   }
 }
@@ -228,16 +256,22 @@ Writer*
 writer_start(const char* out_path, int N, int batch_size)
 {
   Writer* w = new Writer(); 
-  w->fp = std::fopen(out_path, "wb");
+  w->fp = std::fopen(out_path, "w");
   if ( !w->fp ) {
     delete w; 
     return nullptr; 
   }
 
+  setvbuf(w->fp, nullptr, _IOFBF, 8 * 1024 * 1024);
+
   w->N = N; 
   w->batch_size = batch_size; 
+  w->rows_per_batch  = static_cast<size_t>(N) * static_cast<size_t>(batch_size);
   w->bytes_per_batch = static_cast<size_t>(N) * static_cast<size_t>(batch_size) *
                        sizeof(Snapshot);
+
+  std::fputs("epoch,agent,x,y,z,vx,vy,vz\n", w->fp);
+  w->header_written = true; 
 
   w->t = std::thread(writer_thread_fn, w);
   return w; 

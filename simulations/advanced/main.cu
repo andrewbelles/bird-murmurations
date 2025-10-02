@@ -68,7 +68,9 @@ int main(int argc, char* argv[]) {
   cudaError_t status; 
   std::srand(getpid());
   Args args; 
+
   parse_args(argc, argv, args);
+  std::cout << "[INIT] Arguments parsed correctly\n";
 
   SimulationParams sim_params; 
   EnvironmentParams env_params; 
@@ -76,9 +78,11 @@ int main(int argc, char* argv[]) {
   
   get_general_parameters(args, &sim_params, &env_params);
   get_communication_parameters(args, sim_params.min_dist, &comm_params);
+  std::cout << "[INIT] Parameters set\n";
 
   std::vector<float3> h_pos(args.agents), h_vel(args.agents);
   initialize_state(args, h_pos, h_vel);
+  std::cout << "[INIT] State initialized\n";
 
   sim::Simulation simulation; 
   if ( (status = sim::create(
@@ -90,12 +94,16 @@ int main(int argc, char* argv[]) {
     exit( 99 );
   }
 
+  std::cout << "[INIT] Simulation initialized\n";
+
   for (uint64_t epoch(0); epoch < args.epochs; epoch++) {
     if ( (status = sim::step(&simulation, epoch, comm_params)) != cudaSuccess ) {
       sim::destroy(&simulation);
       exit( 99 ); 
     }
   }
+
+  std::cout << "[SIM] Simulation ended\n";
 
   sim::destroy(&simulation);
   cudaDeviceSynchronize(); 
