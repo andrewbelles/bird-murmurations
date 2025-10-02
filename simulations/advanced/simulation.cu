@@ -152,7 +152,8 @@ destroy(Simulation* sim)
 }
 
 cudaError_t 
-step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params) 
+step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params,
+     uint32_t* rng_state) 
 {
   cudaError_t status; 
 
@@ -172,7 +173,7 @@ step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params)
     
   params.epoch = epoch; 
   if ( (status = comms::launch(sim->d_pos, sim->d_vel, sim->agent_count, sim->grid,
-                               sim->inbox, params, nullptr)) != cudaSuccess ) {
+                               sim->inbox, params, rng_state)) != cudaSuccess ) {
     return status; 
   } 
 

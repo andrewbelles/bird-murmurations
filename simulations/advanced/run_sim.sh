@@ -6,9 +6,9 @@
 # just because I am lazy 
 #
 
+./simboids --env env.yaml --sim sim.yaml --logger /dev/null \
+	--agents 32 --bufr 32 --steps 60000 --noise 0.05 --loss 0.05
 
-./simboids --env env.yaml --sim sim.yaml --logger logging.csv \
-	--agents 1024 --bufr 32 --steps 10000 
+./summary.py  
 
-python3 summarize.py  
-ls -1 -- *.png | head -n 1 | xargs -r xdg-open 
+ls -1 *.png | head -n 1 | xargs -r xdg-open 

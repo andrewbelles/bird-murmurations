@@ -52,7 +52,7 @@ launch(const float3* positions, const float3* velocities, int N,
   // call to kernel 
   broadcast_positions<<<grid_size, block, 0, stream>>>(
     positions, velocities, N, grid.cell_size, grid.dims, grid.offsets, 
-    grid.agents, inboxes, params, nullptr 
+    grid.agents, inboxes, params, rng 
   );
 
   return cudaPeekAtLastError();
@@ -109,7 +109,7 @@ broadcast_positions(const float3* __restrict__ positions,
     }
 
     if ( params.enable_loss && update_rng(&rng_state[idx]) < params.loss ) {
-      return true;  // skip this packet  
+      return false;  // skip this packet  
     }
 
     // push packet to neighbor 

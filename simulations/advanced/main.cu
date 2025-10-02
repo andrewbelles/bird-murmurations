@@ -12,12 +12,10 @@
 #include "network/communication.cuh"
 
 #include <cstdlib>
-#include <cuda_device_runtime_api.h>
 #include <cuda_runtime.h> 
 #include <iostream> 
 #include <fstream> 
 #include <vector>
-#include <vector_functions.h>
 #include <unistd.h> 
 
 namespace {
@@ -53,6 +51,7 @@ struct Args {
   float noise = 0.0; 
 };
 
+static uint32_t* get_rng(int N);
 static void print_usage(const char* program);
 static void parse_args(int argc, char* argv[], Args& args);
 static void get_general_parameters(const Args& args, SimulationParams *sp, 
@@ -62,15 +61,16 @@ static void get_communication_parameters(const Args& args, float dist,
 static inline float3 random_vector();
 static void initialize_state(const Args& args, std::vector<float3>& h_pos, 
                              std::vector<float3>& h_vel);
-
+__global__ void init_rng(uint32_t* d_rng, int N, uint64_t seed);
 
 int main(int argc, char* argv[]) {
   cudaError_t status; 
-  std::srand(getpid());
   Args args; 
 
   parse_args(argc, argv, args);
   std::cout << "[INIT] Arguments parsed correctly\n";
+
+  uint32_t* d_rng = get_rng(args.agents);
 
   SimulationParams sim_params; 
   EnvironmentParams env_params; 
@@ -97,7 +97,8 @@ int main(int argc, char* argv[]) {
   std::cout << "[INIT] Simulation initialized\n";
 
   for (uint64_t epoch(0); epoch < args.epochs; epoch++) {
-    if ( (status = sim::step(&simulation, epoch, comm_params)) != cudaSuccess ) {
+    if ( (status = sim::step(
+            &simulation, epoch, comm_params, d_rng)) != cudaSuccess ) {
       sim::destroy(&simulation);
       exit( 99 ); 
     }
@@ -105,9 +106,36 @@ int main(int argc, char* argv[]) {
 
   std::cout << "[SIM] Simulation ended\n";
 
+  cudaFree(d_rng);
   sim::destroy(&simulation);
   cudaDeviceSynchronize(); 
   return 0; 
+}
+
+static uint32_t* 
+get_rng(int N)
+{
+  cudaError_t status; 
+  uint32_t* d_rng; 
+  const int block = 256; 
+  const int grid = (N + block - 1) / block; 
+
+  std::srand(getpid());
+
+  if ( (status = cudaMallocAsync(&d_rng, N * sizeof(uint32_t), 0)) != cudaSuccess) {
+    std::cerr << "[ERROR] malloc error for rng_state ";
+    std::cerr << cudaGetErrorString(status) << '\n';
+    exit( 99 );
+  }
+
+  init_rng<<<grid, block, 0, 0>>>(d_rng, N, getpid());
+  if ( (status = cudaPeekAtLastError()) != cudaSuccess ) {
+    std::cerr << "[ERROR] failure in rng_state initialization "; 
+    std::cerr << cudaGetErrorString(status) << '\n';
+    exit( 99 ); 
+  }
+
+  return d_rng; 
 }
 
 static void 
@@ -283,3 +311,33 @@ static inline float3 random_vector()
   );
 }
 
+/*
+ * Credit ChatGPT 5-Thinking for RNG initialization help 
+ */
+static __device__ __forceinline__ uint32_t 
+splitmix_seed(uint64_t x)
+{
+  x += 0x9e3779b97f4a7c15ULL;
+  x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+  x =  x ^ (x >> 31);
+  return (uint32_t)x;
+}
+
+__global__ void 
+init_rng(uint32_t* d_rng, int N, uint64_t seed)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x; 
+  if ( idx >= N ) {
+    return; 
+  }
+
+  uint64_t mix = seed ^ (uint64_t)idx; 
+  uint32_t mixed_seed = splitmix_seed(mix);
+
+  if ( mixed_seed == 0 ) {
+    mixed_seed = 1;
+  }
+
+  d_rng[idx] = mixed_seed;  
+}

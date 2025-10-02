@@ -113,6 +113,7 @@ SpatialGrid::build(const float3* positions, int N, cudaStream_t stream)
     if ( (status = cudaMemcpyAsync(
             offsets + cell_count, &N, sizeof(int),
             cudaMemcpyHostToDevice, stream)) != cudaSuccess ) {
+      std::cerr << "grid.cu:116 exclusive_scan failure: " << cudaGetErrorString(status);
       destroy();
       return status; 
     }

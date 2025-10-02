@@ -7,7 +7,7 @@
 #
 
 CUDA = nvcc 
-FLAGS = -O3 -std=c++17 -lineinfo -rdc=true --expt-extended-lambda -lcudart  
+FLAGS = -O3 -std=c++17 -lineinfo -rdc=true --expt-extended-lambda -lcudart -Xcompiler -rdynamic 
 INCLUDES = -I. -Inetwork -Ilogger -Iagent
 OBJS = main.o simulation.o 
 

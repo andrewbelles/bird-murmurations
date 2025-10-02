@@ -1,4 +1,4 @@
-# 
+#!/usr/bin/env python3  
 # summary.py  Andrew Belles  Oct 1st, 2025  
 # 
 # Summarizes timeseries data from simulation  

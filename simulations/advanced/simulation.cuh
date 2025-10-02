@@ -39,7 +39,8 @@ cudaError_t create(Simulation* sim, const float3* h_pos, const float* h_vel,
                    const EnvironmentParams* env_params);
 cudaError_t destroy(Simulation* sim);
 
-cudaError_t step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params);
+cudaError_t step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params,
+                 uint32_t* rng_state);
 
 } // end namespace sim
 
