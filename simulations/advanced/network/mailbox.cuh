@@ -53,9 +53,17 @@ struct Mailbox {
 
 /************ device functions ****************************/
 
-__device__ int inbox_base(const Mailbox& box, int agent_id); 
+__device__ __forceinline__ int 
+inbox_base(const Mailbox& box, int agent_id)
+{
+  return agent_id * box.capacity; 
+}
 
-__device__ int ring_index(int base, int index, int K); 
+__device__ __forceinline__ int 
+ring_index(int base, int index, int K)
+{
+  return base + (index % K);
+}
 
 __device__ bool push(Mailbox& box, int recipient_id, 
                      const Packet& packet, Overflow policy);

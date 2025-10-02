@@ -22,9 +22,12 @@ struct Parameters {
   network::Overflow policy; 
   uint32_t epoch; 
 
-  /********** lossy channel *******************************/
+  /********** lossy/noisy channel *************************/
   bool enable_loss = false;
   float loss = 0.0;
+
+  bool enable_noise = false; 
+  float noise = 0.0; 
 };
 
 cudaError_t launch(const float3* positions, const float3* velocities, int N, 

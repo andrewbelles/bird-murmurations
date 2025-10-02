@@ -13,7 +13,7 @@ VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
 
 .PHONY: all clean test 
 
-all: network_test 
+all: network_test $(OBJS)  
 
 network_test: $(OBJS)
 	$(CC) $(FLAGS) $(OBJS) -o $@
@@ -34,4 +34,4 @@ test: network_test
 	./network_test 
 
 clean: 
-	rm -f network_test *.o 
+	rm -f network_test *.o *.a  

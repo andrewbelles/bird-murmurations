@@ -14,7 +14,7 @@ VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
 
 .PHONY: all clean test 
 
-all: logger_test 
+all: logger_test $(OBJS) 
 
 logger_test: $(OBJS)
 	$(CC) $(FLAGS) $(CUDAFLAGS) $(OBJS) -o $@
@@ -29,4 +29,4 @@ test: logger_test
 	./logger_test test.bin 
 
 clean: 
-	rm -f logger_test *.o *.bin 
+	rm -f logger_test *.o *.a *.bin 

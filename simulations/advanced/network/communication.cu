@@ -9,6 +9,19 @@
 #include "communication.cuh"
 #include <cuda_runtime.h>
 
+namespace {
+
+__host__ __device__ static __forceinline__ float3& 
+operator+=(float3& a, const float3& b)
+{
+  a.x += b.x; 
+  a.y += b.y; 
+  a.z += b.z; 
+  return a; 
+}
+
+}
+
 namespace comms {
 
 /*
@@ -45,6 +58,12 @@ launch(const float3* positions, const float3* velocities, int N,
   return cudaPeekAtLastError();
 }
 
+static inline __device__ float 
+update_rng(uint32_t* state)
+{
+  (*state) = (*state) * 1664525 + 1013904223; 
+  return static_cast<float>((*state) & 0x00FFFFFF) / float(0x01000000);
+}
 /*
  * GPU KERNEL
  * 
@@ -89,8 +108,8 @@ broadcast_positions(const float3* __restrict__ positions,
       return false; 
     }
 
-    if ( params.enable_loss ) {
-      /* TODO Lossy channel, drop packets, malform data, etc. */
+    if ( params.enable_loss && update_rng(&rng_state[idx]) < params.loss ) {
+      return true;  // skip this packet  
     }
 
     // push packet to neighbor 
@@ -99,6 +118,17 @@ broadcast_positions(const float3* __restrict__ positions,
     packet.x = xi; 
     packet.v = velocities[idx];
     packet.epoch = params.epoch;
+    
+    if ( params.enable_noise && params.noise > 0.0 ) {
+      float3 noise_inject = { 
+        params.noise * update_rng(&rng_state[idx]), 
+        params.noise * update_rng(&rng_state[idx]), 
+        params.noise * update_rng(&rng_state[idx]) 
+      }; 
+
+      packet.x += noise_inject;
+    }
+
     return network::push(inboxes, neighbor, packet, params.policy); 
   };
 

@@ -6,15 +6,47 @@
 # Contains calls for test as well 
 #
 
-.PHONY: all test clean 
+CUDA = nvcc 
+FLAGS = -O3 -std=c++17 -lineinfo -rdc=true --expt-extended-lambda -lcudart  
+INCLUDES = -I. -Inetwork -Ilogger -Iagent
+OBJS = main.o simulation.o 
 
-all: 
+NETWORK_OBJS = network/mailbox.o network/grid.o network/communication.o  
+LOGGER_OBJS  = logger/logger.o 
+AGENT_OBJS   = agent/agent.o agent/environment.o  
+
+LIBS = -Lagent -lagent -Lnetwork -lnetwork -Llogger -llogger 
+
+.PHONY: all test clean $(NETWORK_OBJS) $(LOGGER_OBJS) $(AGENT_OBJS) 
+
+all: simboids 
+
+dlink.o: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS)
+	$(CUDA) $(FLAGS) $(INCLUDES) -dlink $^ -o $@
+
+simboids: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) dlink.o 
+	$(CUDA) $(FLAGS) $(INCLUDES) $^ -o $@ 
+
+main.o: main.cu simulation.cuh agent/environment.cuh agent/agent.cuh 
+	$(CUDA) $(FLAGS) $(INCLUDES) -c $< -o $@
+
+simulation.o: simulation.cu simulation.cuh network/grid.cuh network/mailbox.cuh network/communication.cuh logger/logger.cuh agent/environment.cuh agent/agent.cuh  
+	$(CUDA) $(FLAGS) $(INCLUDES) -c $< -o $@
+
+$(NETWORK_OBJS):
 	make -C network 
+
+$(LOGGER_OBJS):
 	make -C logger 
 
+$(AGENT_OBJS):
+	make -C agent 
+
 clean: 
+	rm -f $(OBJS) simboids *.o 
 	make -C network clean 
 	make -C logger clean 
+	make -C agent clean 
 
 test: 
 	make -C network test 
