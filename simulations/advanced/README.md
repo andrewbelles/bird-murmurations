@@ -10,6 +10,10 @@ The `network` module implements a simulated broadband network that aims to
 
 Let $\Sigma = \Cov(\textbf{r_i})$ be the $3\times 3$ covariance of positions relative to the center of mass. Let $\hat{u}$ be the unit direction of the average velocity. $R_\parallel$ is the parallel spread and $R_\perp$ is the perpendicular spread. That is how the flock moves parallel and perpendicular to the average motion of the flock.
 
+![Polarization and Radius of Gyration](polar_and_rg.png)
+
+![Directional Dependence](anisotropy_nn.png)
+
 #### Polarization 
 
 
