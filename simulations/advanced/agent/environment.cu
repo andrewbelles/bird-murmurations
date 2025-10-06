@@ -94,6 +94,7 @@ read_simulation_params(const char *path, SimulationParams *out)
   read(&params.w_cohesion);
   read(&params.max_accel);
   read(&params.max_vel);
+  read(&params.world_extent);
 
   *out = params; 
 

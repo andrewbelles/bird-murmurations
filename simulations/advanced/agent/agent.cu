@@ -60,6 +60,14 @@ __device__ __host__ inline float3& operator+=(float3& a, const float3& b)
   return a; 
 }
 
+__device__ __host__ inline float3& operator-=(float3& a, const float3& b)
+{
+  a.x -= b.x;
+  a.y -= b.y; 
+  a.z -= b.z; 
+  return a; 
+}
+
 __device__ __host__ inline float3 operator*(const float& c, const float3& b)
 {
   return make_float3(c * b.x, c * b.y, c * b.z);
@@ -136,8 +144,9 @@ compute_boids_accel(const float3 *d_pos, const float3 *d_vel,
   d_accel[idx] = accel;
 }
 
-__global__ void integrate(float3* d_pos, float3* d_vel, const float3* d_accel, 
-                          const SimulationParams* sim_params, int N)
+__global__ void 
+integrate(float3* d_pos, float3* d_vel, const float3* d_accel, 
+          const SimulationParams* sim_params, int N)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x; 
   if ( idx >= N ) {
@@ -145,12 +154,21 @@ __global__ void integrate(float3* d_pos, float3* d_vel, const float3* d_accel,
   }
 
   const SimulationParams sp = *sim_params;
+  const float extent = sp.world_extent; 
   float3 vel = d_vel[idx], acc = d_accel[idx], pos = d_pos[idx];
+  
+  float3 tile = make_float3(
+    floorf((pos.x + extent) / (2.0 * extent)), 
+    floorf((pos.y + extent) / (2.0 * extent)),
+    floorf((pos.z + extent) / (2.0 * extent))
+  );
+
   vel += sp.dt * acc; 
   vel = clamp(vel, -sp.max_vel, sp.max_vel);
   d_vel[idx] = vel; 
-  
+
   pos += sp.dt * vel; 
+  pos -= (2.0 * extent) * tile;
   d_pos[idx] = pos; 
 }
 

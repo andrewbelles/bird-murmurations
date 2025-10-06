@@ -38,6 +38,7 @@ struct SimulationParams {
   float w_cohesion   = 1.0;  // weight of cohesion force 
   float max_accel    = 5.0;  // maximal acceleration 
   float max_vel      = 5.0;  // maximal velocity 
+  float world_extent = 10.0; // maximal |pos| 
 };
 
 __host__ cudaError_t read_environment_params(const char* path, EnvironmentParams* out);
