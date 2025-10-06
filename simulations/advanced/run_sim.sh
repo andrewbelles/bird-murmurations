@@ -7,7 +7,7 @@
 #
 
 ./simboids --env env.yaml --sim sim.yaml --logger /dev/null \
-	--agents 32 --bufr 32 --steps 60000 --noise 0.05 --loss 0.05
+	--agents 8 --bufr 32 --steps 3600000 --noise 0.05 --loss 0.05
 
 ./summary.py  
 
