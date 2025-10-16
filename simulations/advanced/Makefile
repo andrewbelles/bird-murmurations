@@ -8,26 +8,27 @@
 
 CUDA = nvcc 
 FLAGS = -O3 -std=c++17 -lineinfo -rdc=true --expt-extended-lambda -lcudart -Xcompiler -rdynamic 
-INCLUDES = -I. -Inetwork -Ilogger -Iagent
+INCLUDES = -I. -Inetwork -Ilogger -Iagent -Irender 
 OBJS = main.o simulation.o 
 
 NETWORK_OBJS = network/mailbox.o network/grid.o network/communication.o  
 LOGGER_OBJS  = logger/logger.o 
 AGENT_OBJS   = agent/agent.o agent/environment.o  
+RENDER_OBJS  = render/render.o 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
-LIBS = -Lagent -lagent -Lnetwork -lnetwork -Llogger -llogger 
+LIBS = -lGLEW -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl
 
-.PHONY: all test clean run $(NETWORK_OBJS) $(LOGGER_OBJS) $(AGENT_OBJS) 
+.PHONY: all test clean run $(NETWORK_OBJS) $(LOGGER_OBJS) $(AGENT_OBJS) $(RENDER_OBJS) 
 
 all: simboids 
 
-dlink.o: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS)
+dlink.o: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) $(RENDER_OBJS)
 	$(CUDA) $(FLAGS) $(INCLUDES) -dlink $^ -o $@
 
-simboids: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) dlink.o 
-	$(CUDA) $(FLAGS) $(INCLUDES) $^ -o $@ 
+simboids: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) $(RENDER_OBJS) dlink.o 
+	$(CUDA) $(FLAGS) $(INCLUDES) $^ -o $@ $(LIBS) 
 
-main.o: main.cu simulation.cuh agent/environment.cuh agent/agent.cuh 
+main.o: main.cu simulation.cuh render/render.cuh agent/environment.cuh agent/agent.cuh 
 	$(CUDA) $(FLAGS) $(INCLUDES) -c $< -o $@
 
 simulation.o: simulation.cu simulation.cuh network/grid.cuh network/mailbox.cuh network/communication.cuh logger/logger.cuh agent/environment.cuh agent/agent.cuh  
@@ -42,11 +43,15 @@ $(LOGGER_OBJS):
 $(AGENT_OBJS):
 	make -C agent 
 
+$(RENDER_OBJS):
+	make -C render 
+
 clean: 
 	rm -f $(OBJS) simboids *.o *.csv *.png  
 	make -C network clean 
 	make -C logger clean 
 	make -C agent clean 
+	make -C render clean 
 
 test: 
 	make -C network test 

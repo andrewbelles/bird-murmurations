@@ -10,6 +10,7 @@
 #include "simulation.cuh"
 #include "agent/environment.cuh"
 #include "network/communication.cuh"
+#include "render/render.cuh"
 
 #include <cstdlib>
 #include <cuda_runtime.h> 
@@ -84,7 +85,23 @@ int main(int argc, char* argv[]) {
   initialize_state(args, h_pos, h_vel);
   std::cout << "[INIT] State initialized\n";
 
+
   sim::Simulation simulation; 
+  render::Context render_context; 
+  render::Config render_conf{
+    .agents     = args.agents,
+    .color      = make_float3(0.2, 0.7, 1.0),
+    .point_size = 3.0, 
+    .width      = 1280, 
+    .height     = 720 
+  };
+
+  if ( (status = render::create(&render_context, render_conf)) != cudaSuccess ) {
+    std::cerr << "[ERROR] renderer initialization failure: "
+              << cudaGetErrorString(status) << '\n'; 
+    exit( 99 );
+  }
+
   if ( (status = sim::create(
           &simulation, h_pos.data(), reinterpret_cast<const float*>(h_vel.data()), 
           args.agents, args.bufr_size, args.logger_file, &sim_params, &env_params)) 
@@ -102,11 +119,29 @@ int main(int argc, char* argv[]) {
       sim::destroy(&simulation);
       exit( 99 ); 
     }
+
+    if ( (status = render::begin_frame(&render_context)) != cudaSuccess ) {
+      break; 
+    }
+
+    if ( (status = render::upload_positions(
+            &render_context, simulation.d_pos, args.agents)) != cudaSuccess ) {
+      break; 
+    }
+
+    if ( (status = render::end_frame(&render_context)) != cudaSuccess ) {
+      break; 
+    }
+
+    if ( glfwWindowShouldClose(render_context.window) ) {
+      std::cout << "[SIM] simulation requested to close\n";
+    }
   }
 
   std::cout << "[SIM] Simulation ended\n";
 
   cudaFree(d_rng);
+  render::destroy(&render_context);
   sim::destroy(&simulation);
   cudaDeviceSynchronize(); 
   return 0; 
