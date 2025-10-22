@@ -135,6 +135,7 @@ int main(int argc, char* argv[]) {
 
     if ( glfwWindowShouldClose(render_context.window) ) {
       std::cout << "[SIM] simulation requested to close\n";
+      break; 
     }
   }
 

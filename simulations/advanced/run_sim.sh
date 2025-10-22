@@ -6,8 +6,9 @@
 # just because I am lazy 
 #
 
-./simboids --env env.yaml --sim sim.yaml --logger /dev/null \
-	--agents 8 --bufr 32 --steps 3600000 --noise 0.05 --loss 0.05
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia \
+  ./simboids --env env.yaml --sim sim.yaml --logger /dev/null \
+	--agents 2048 --bufr 32 --steps 1000 --noise 0.05 --loss 0.05
 
 ./summary.py  
 

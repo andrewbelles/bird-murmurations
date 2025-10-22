@@ -205,6 +205,7 @@ assign_cells(const float3* __restrict__ positions, int N, float cell_size, int3 
   // inc count for this cell 
   cell = cell_to_index(coord, dims);
   atomicAdd(&counts[cell], 1);
+  agent_cell[idx] = cell;  
 }
 
 __global__ void 
