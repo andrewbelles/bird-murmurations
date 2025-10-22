@@ -22,6 +22,7 @@ int main(void)
 {
   grid::SpatialGrid grid{};
   const float3 bound{4.0, 4.0, 4.0}; 
+  const float3 origin{0.0, 0.0, 0.0};
   const float cell = 1.0; 
   const int N = 64; 
   int idx = 0; 
@@ -52,7 +53,7 @@ int main(void)
              cudaMemcpyHostToDevice), "line:49 position memcpy");
 
   // test grid instantiation 
-  cuda_check(grid.create(bound, cell, N), "line:55 grid.create");
+  cuda_check(grid.create(origin, bound, cell, N), "line:55 grid.create");
   cuda_check(grid.build(d_pos, N), "line:57 grid.build");
   std::cout << "[TEST PASSED] Grid created and built\n"; 
   cudaDeviceSynchronize();

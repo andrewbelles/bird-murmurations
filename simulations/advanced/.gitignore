@@ -3,5 +3,6 @@ data/
 *.bin 
 
 *.csv
+*.log
 
 simboids 

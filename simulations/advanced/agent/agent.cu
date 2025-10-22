@@ -8,6 +8,7 @@
 
 #include "agent.cuh"
 #include "environment.cuh"
+#include "network/float3_ops.cuh"
 
 #include <cuda_runtime.h> 
 #include <cstdio> 
@@ -38,39 +39,6 @@ launch_integrate(float3 *d_pos, float3 *d_vel, const float3 *d_accel, int N,
   int grid = (N + block - 1) / block;
   integrate<<<grid, block, 0, stream>>>(d_pos, d_vel, d_accel, sim_params, N);
   return cudaGetLastError();
-}
-
-/************ float3 overloads ****************************/
-
-__device__ __host__ inline float3 operator-(const float3& a, const float3& b)
-{
-  return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-__device__ __host__ inline float3 operator+(const float3& a, const float3& b)
-{
-  return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-
-__device__ __host__ inline float3& operator+=(float3& a, const float3& b)
-{
-  a.x += b.x;
-  a.y += b.y; 
-  a.z += b.z; 
-  return a; 
-}
-
-__device__ __host__ inline float3& operator-=(float3& a, const float3& b)
-{
-  a.x -= b.x;
-  a.y -= b.y; 
-  a.z -= b.z; 
-  return a; 
-}
-
-__device__ __host__ inline float3 operator*(const float& c, const float3& b)
-{
-  return make_float3(c * b.x, c * b.y, c * b.z);
 }
 
 __device__ float3 

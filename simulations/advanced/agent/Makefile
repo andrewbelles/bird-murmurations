@@ -11,17 +11,17 @@ OBJS  = agent.o environment.o
 FLAGS = -O3 -std=c++17 
 CUDAFLAGS = -lineinfo -Xcompiler -fPIC -rdc=true --expt-extended-lambda -Xcompiler -pthread 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
-INCLUDES = -I../network/ -I../logger
+INCLUDES = -I.. -I../network -I../logger
 
 .PHONY: all clean test 
 
 all: $(OBJS) 
 
-agent.o: agent.cu agent.cuh 
-	$(CC) $(FLAGS) $(CUDAFLAGS) -c $< -o $@
+agent.o: agent.cu agent.cuh ../network/float3_ops.cuh 
+	$(CC) $(FLAGS) $(CUDAFLAGS) $(INCLUDES) -c $< -o $@
 
 environment.o: environment.cu environment.cuh 
-	$(CC) $(FLAGS) $(CUDAFLAGS) -c $< -o $@
+	$(CC) $(FLAGS) $(CUDAFLAGS) $(INCLUDES) -c $< -o $@
 
 clean: 
 	rm -f network_test *.o *.a  

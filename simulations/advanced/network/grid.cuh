@@ -20,8 +20,8 @@ namespace grid {
  * We assume that the lower bound of the grid is the origin 
  */ 
 struct SpatialGrid {
-  /********** simulation parameters ***********************/ 
-  float3 max_bound; 
+  /********** simulation parameters ***********************/
+  float3 min_bound, max_bound; 
   float cell_size; 
   int3 dims;                // floor(max_bound / cell_size) 
   int cell_count, capacity; // _, 2048 
@@ -30,7 +30,8 @@ struct SpatialGrid {
   int *agent_cell, *counts, *offsets, *agents, *cell_write_ptr; 
 
   // cpu call for gpu constructor and destructor 
-  cudaError_t create(const float3 max_bound, const float cell_size, const int capacity);
+  cudaError_t create(const float3 min_bound, const float3 max_bound, 
+                     const float cell_size, const int capacity);
   void destroy(); 
   
   cudaError_t build(const float3* positions, int N, cudaStream_t stream=0);
@@ -85,7 +86,7 @@ __global__ void reset_counts(int* __restrict__ counts, int cell_count);
 
 // computes each agent's cell id and increments counts (atomically)
 __global__ void assign_cells(const float3* __restrict__ positions, int N,
-                             float cell_size, int3 dims, 
+                             float cell_size, const float3 min_bound, int3 dims, 
                              int* __restrict__ agent_cell, 
                              int* __restrict__ counts);
 

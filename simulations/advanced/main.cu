@@ -11,6 +11,7 @@
 #include "agent/environment.cuh"
 #include "network/communication.cuh"
 #include "render/render.cuh"
+#include "network/float3_ops.cuh"
 
 #include <cstdlib>
 #include <cuda_runtime.h> 
@@ -18,22 +19,6 @@
 #include <fstream> 
 #include <vector>
 #include <unistd.h> 
-
-namespace {
-
-static inline float3 
-operator*(float c, const float3 a)
-{
-  return make_float3(c * a.x, c * a.y, c * a.z);
-}
-
-static inline float3 
-operator-(const float3 a, float c)
-{
-  return make_float3(a.x - c, a.y - c, a.z - c);
-}
-
-}
 
 struct Args {
   // required 
@@ -66,6 +51,7 @@ __global__ void init_rng(uint32_t* d_rng, int N, uint64_t seed);
 
 int main(int argc, char* argv[]) {
   cudaError_t status; 
+  bool early = false; 
   Args args; 
 
   parse_args(argc, argv, args);
@@ -135,6 +121,7 @@ int main(int argc, char* argv[]) {
 
     if ( glfwWindowShouldClose(render_context.window) ) {
       std::cout << "[SIM] simulation requested to close\n";
+      early = true; 
       break; 
     }
   }
@@ -145,7 +132,12 @@ int main(int argc, char* argv[]) {
   render::destroy(&render_context);
   sim::destroy(&simulation);
   cudaDeviceSynchronize(); 
-  return 0; 
+
+  if ( early ) {
+    return 1; 
+  } else {
+    return 0; 
+  }
 }
 
 static uint32_t* 

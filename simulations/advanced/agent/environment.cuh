@@ -39,6 +39,8 @@ struct SimulationParams {
   float max_accel    = 5.0;  // maximal acceleration 
   float max_vel      = 5.0;  // maximal velocity 
   float world_extent = 10.0; // maximal |pos| 
+  float boundary_margin = 0.2f;      // fraction of extent where boundary force engages
+  float boundary_stiffness = 6.0f;   // strength of boundary penalty
 };
 
 __host__ cudaError_t read_environment_params(const char* path, EnvironmentParams* out);

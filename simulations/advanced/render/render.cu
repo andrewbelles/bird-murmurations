@@ -8,11 +8,18 @@
 
 #include "render.cuh"
 
+#include <GLFW/glfw3.h>
 #include <cuda_runtime.h>
 
+#include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <string_view>
 #include <string>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace {
 
@@ -21,14 +28,17 @@ namespace {
 bool g_glfw_initialized = false;
 int g_glfw_contexts = 0;
 
+constexpr float tol = 1e-3; 
+
 constexpr std::string_view kWindowTitle = "Simulation";
 
 constexpr std::string_view kVertexShaderSrc = R"(\
 #version 330 core
 layout(location = 0) in vec3 inPosition;
+uniform mat4 uViewProj;
 uniform float uPointSize;
 void main() {
-  gl_Position = vec4(inPosition, 1.0);
+  gl_Position = uViewProj * vec4(inPosition, 1.0);
   gl_PointSize = uPointSize;
 }
 )";
@@ -41,6 +51,13 @@ void main() {
   fragColor = vec4(uColor, 1.0);
 }
 )";
+
+void 
+glfw_error_callback(int error, const char* description)
+{
+  std::cerr << "[RENDER] glfw error: " << error 
+            << ((description) ? description : "") << '\n';
+}
 
 /************ compile_shader() **************************************/
 /*
@@ -139,6 +156,46 @@ ensure_gl_context(render::Context* context)
   return cudaSuccess;
 }
 
+void 
+update_view_projection(render::Context* context, int fb_width, int fb_height)
+{
+  if (!context) {
+    return;
+  }
+
+  context->framebuffer_width = fb_width;
+  context->framebuffer_height = fb_height;
+
+  const float aspect =
+      (fb_height > 0) ? static_cast<float>(fb_width) / static_cast<float>(fb_height) : 1.0f;
+
+  const float near_plane = std::max(context->conf.camera.near_plane, tol);
+  float far_plane = context->conf.camera.far_plane;
+  if (far_plane <= near_plane + tol) {
+    far_plane = near_plane + 1.0;
+  }
+
+  const glm::vec3 eye(context->conf.camera.position.x,
+                      context->conf.camera.position.y,
+                      context->conf.camera.position.z);
+  const glm::vec3 target(context->conf.camera.target.x,
+                         context->conf.camera.target.y,
+                         context->conf.camera.target.z);
+  glm::vec3 up(context->conf.camera.up.x,
+               context->conf.camera.up.y,
+               context->conf.camera.up.z);
+
+  if (glm::dot(up, up) < tol) {
+    up = glm::vec3(0.0, 1.0, 0.0);
+  }
+
+  const glm::mat4 view = glm::lookAt(eye, target, up);
+  const glm::mat4 proj = glm::perspective(glm::radians(context->conf.camera.fov_y_degrees),
+                                          aspect, near_plane, far_plane);
+  const glm::mat4 vp = proj * view;
+  std::memcpy(context->view_proj, glm::value_ptr(vp), sizeof(context->view_proj));
+}
+
 } // namespace
 
 namespace render {
@@ -146,6 +203,7 @@ namespace render {
 cudaError_t
 create(Context* context, const Config& conf) 
 {
+  glfwSetErrorCallback(glfw_error_callback);
   if ( !context || conf.agents <= 0 || conf.point_size <= 0.0 ) {
     return cudaErrorInvalidValue;
   }
@@ -155,18 +213,22 @@ create(Context* context, const Config& conf)
 
   if ( !g_glfw_initialized ) {
     if (!glfwInit()) {
+      glfwGetError(nullptr);
       return cudaErrorUnknown;
+    } else {
+      g_glfw_initialized = true;
     }
-    g_glfw_initialized = true;
   }
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
   context->window = glfwCreateWindow(conf.width, conf.height,
                                      kWindowTitle.data(), nullptr, nullptr);
+  glfwGetError(nullptr);
   if ( !context->window ) {
     destroy(context);
     return cudaErrorUnknown;
@@ -197,6 +259,11 @@ create(Context* context, const Config& conf)
   glBufferData(GL_ARRAY_BUFFER, buffer_bytes, nullptr, GL_DYNAMIC_DRAW);
   context->positions.byte_size = buffer_bytes;
 
+  glEnable(GL_PROGRAM_POINT_SIZE);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LESS);
+  glClearDepth(1.0);
+
   cudaError_t status = cudaGraphicsGLRegisterBuffer(
     &context->positions.resource, context->positions.vbo,
     cudaGraphicsRegisterFlagsWriteDiscard
@@ -214,6 +281,9 @@ create(Context* context, const Config& conf)
     destroy(context);
     return cudaErrorUnknown;
   }
+  context->view_proj_loc = glGetUniformLocation(context->shader, "uViewProj");
+  context->color_loc = glGetUniformLocation(context->shader, "uColor");
+  context->point_size_loc = glGetUniformLocation(context->shader, "uPointSize");
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
@@ -221,6 +291,8 @@ create(Context* context, const Config& conf)
   glfwShowWindow(context->window);
 
   g_glfw_contexts++;
+  context->draw_count = conf.agents;
+  std::cerr << "Context Count: " << g_glfw_contexts << '\n';
   return cudaSuccess;
 }
 
@@ -254,6 +326,14 @@ destroy(Context* context)
     glDeleteProgram(context->shader);
     context->shader = 0;
   }
+
+  context->view_proj_loc = -1;
+  context->color_loc = -1;
+  context->point_size_loc = -1;
+  context->framebuffer_width = 0;
+  context->framebuffer_height = 0;
+  context->draw_count = 0;
+  std::fill(std::begin(context->view_proj), std::end(context->view_proj), 0.0f);
 
   if (context->window) {
     glfwDestroyWindow(context->window);
@@ -289,9 +369,11 @@ begin_frame(Context* context)
     fb_height = context->conf.height;
   }
 
+  update_view_projection(context, fb_width, fb_height);
+
   glViewport(0, 0, fb_width, fb_height);
   glClearColor(0.02, 0.02, 0.05, 1.0);
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   return cudaSuccess;
 }
@@ -339,6 +421,8 @@ upload_positions(Context* context, const float3* d_positions, int count)
       cudaGraphicsUnmapResources(1, &context->positions.resource, 0);
   if (status == cudaSuccess && unmap_status != cudaSuccess) {
     status = unmap_status;
+  } else if (status == cudaSuccess) {
+    context->draw_count = count;
   }
 
   return status;
@@ -354,18 +438,22 @@ end_frame(Context* context)
 
   glUseProgram(context->shader);
   const float3& color = context->conf.color;
-  GLint color_loc = glGetUniformLocation(context->shader, "uColor");
-  if (color_loc >= 0) {
-    glUniform3f(color_loc, color.x, color.y, color.z);
+  if (context->color_loc >= 0) {
+    glUniform3f(context->color_loc, color.x, color.y, color.z);
   }
 
-  GLint point_size_loc = glGetUniformLocation(context->shader, "uPointSize");
-  if (point_size_loc >= 0) {
-    glUniform1f(point_size_loc, context->conf.point_size);
+  if (context->point_size_loc >= 0) {
+    glUniform1f(context->point_size_loc, context->conf.point_size);
+  }
+
+  if (context->view_proj_loc >= 0) {
+    glUniformMatrix4fv(context->view_proj_loc, 1, GL_FALSE, context->view_proj);
   }
 
   glBindVertexArray(context->vao);
-  glDrawArrays(GL_POINTS, 0, context->conf.agents);
+  const int vertices = (context->draw_count > 0) ? context->draw_count
+                                                 : context->conf.agents;
+  glDrawArrays(GL_POINTS, 0, vertices);
   glBindVertexArray(0);
 
   glUseProgram(0);

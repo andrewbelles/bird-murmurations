@@ -8,8 +8,8 @@
 
 
 #include "grid.cuh"
+#include "float3_ops.cuh"
 #include <cuda_runtime.h> 
-#include <cmath> 
 #include <thrust/device_ptr.h> 
 #include <thrust/execution_policy.h> 
 #include <thrust/scan.h> 
@@ -25,18 +25,36 @@ namespace grid {
  *   maximum simulation bound, discrete cell size, and total number of agents 
  */ 
 cudaError_t 
-SpatialGrid::create(const float3 max_bound, const float cell_size, const int capacity)
+SpatialGrid::create(const float3 min_bound, const float3 max_bound, 
+                    const float cell_size, const int capacity)
 {
   cudaError_t status; 
 
+  this->min_bound = min_bound; 
   this->max_bound = max_bound; 
   this->cell_size = cell_size; 
   
-  dims.x = floor( (double)max_bound.x / cell_size );  
-  dims.y = floor( (double)max_bound.y / cell_size );  
-  dims.z = floor( (double)max_bound.z / cell_size );  
+  const float3 span = max_bound - min_bound;
+  if ( span.x <= 0.0 || span.y <= 0.0 || span.z <= 0.0 ) {
+    return cudaErrorInvalidValue; 
+  }
+
+  // get each dimension (in general equal)
+  dims.x = static_cast<int>(std::ceil(span.x / cell_size));
+  dims.y = static_cast<int>(std::ceil(span.y / cell_size));
+  dims.z = static_cast<int>(std::ceil(span.z / cell_size));
+
+  // ensure at least a single cell in each direction 
+  dims.x = dims.x < 1? 1 : dims.x; 
+  dims.y = dims.y < 1? 1 : dims.y; 
+  dims.z = dims.z < 1? 1 : dims.z; 
+
+  // cell number of cells 
   this->capacity = capacity;
   cell_count = dims.x * dims.y * dims.z;  
+  if ( cell_count <= 0 ) {
+    return cudaErrorInvalidValue; 
+  }
   
   // Instantiation on GPU memory of grid pointers 
 
@@ -97,7 +115,7 @@ SpatialGrid::build(const float3* positions, int N, cudaStream_t stream)
   {
     grid = (N + block - 1) / block; 
     assign_cells<<<grid, block, 0, stream>>>(
-      positions, N, cell_size, dims, 
+      positions, N, cell_size, min_bound, dims, 
       agent_cell, counts
     );
   }
@@ -181,8 +199,9 @@ reset_counts(int* __restrict__ counts, int cell_count)
 
 
 __global__ void 
-assign_cells(const float3* __restrict__ positions, int N, float cell_size, int3 dims, 
-             int* __restrict__ agent_cell, int* __restrict__ counts)
+assign_cells(const float3* __restrict__ positions, int N, float cell_size, 
+             const float3 min_bound, int3 dims, int* __restrict__ agent_cell, 
+             int* __restrict__ counts)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x; 
   float3 pos; 
@@ -195,7 +214,10 @@ assign_cells(const float3* __restrict__ positions, int N, float cell_size, int3 
 
   // get cell coordinate 
   pos = positions[idx]; 
-  coord = get_cell(pos, cell_size);
+  
+  // ensure we get cell in translated space  
+  const float3 shifted = pos - min_bound; 
+  coord = get_cell(shifted, cell_size);
 
   // clamp to avoid deref  
   coord.x = (coord.x < 0) ? 0 : ( coord.x >= dims.x ? dims.x - 1 : coord.x );

@@ -16,7 +16,7 @@ LOGGER_OBJS  = logger/logger.o
 AGENT_OBJS   = agent/agent.o agent/environment.o  
 RENDER_OBJS  = render/render.o 
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all 
-LIBS = -lGLEW -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl
+LIBS = -lGLEW -lglfw -lGL -lX11 -lXrandr -lXi
 
 .PHONY: all test clean run $(NETWORK_OBJS) $(LOGGER_OBJS) $(AGENT_OBJS) $(RENDER_OBJS) 
 
@@ -28,10 +28,10 @@ dlink.o: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) $(RENDER_OBJS)
 simboids: $(OBJS) $(AGENT_OBJS) $(NETWORK_OBJS) $(LOGGER_OBJS) $(RENDER_OBJS) dlink.o 
 	$(CUDA) $(FLAGS) $(INCLUDES) $^ -o $@ $(LIBS) 
 
-main.o: main.cu simulation.cuh render/render.cuh agent/environment.cuh agent/agent.cuh 
+main.o: main.cu simulation.cuh render/render.cuh agent/environment.cuh agent/agent.cuh network/float3_ops.cuh 
 	$(CUDA) $(FLAGS) $(INCLUDES) -c $< -o $@
 
-simulation.o: simulation.cu simulation.cuh network/grid.cuh network/mailbox.cuh network/communication.cuh logger/logger.cuh agent/environment.cuh agent/agent.cuh  
+simulation.o: simulation.cu simulation.cuh network/grid.cuh network/mailbox.cuh network/communication.cuh logger/logger.cuh agent/environment.cuh agent/agent.cuh network/float3_ops.cuh  
 	$(CUDA) $(FLAGS) $(INCLUDES) -c $< -o $@
 
 $(NETWORK_OBJS):

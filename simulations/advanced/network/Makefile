@@ -18,16 +18,16 @@ all: network_test $(OBJS)
 network_test: $(OBJS)
 	$(CC) $(FLAGS) $(OBJS) -o $@
 
-grid.o: grid.cu grid.cuh 
+grid.o: grid.cu grid.cuh float3_ops.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
 mailbox.o: mailbox.cu mailbox.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
-communication.o: communication.cu communication.cuh grid.cuh mailbox.cuh 
+communication.o: communication.cu communication.cuh grid.cuh mailbox.cuh float3_ops.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
-test_network.o: test_network.cpp grid.cuh mailbox.cuh communication.cuh 
+test_network.o: test_network.cpp grid.cuh mailbox.cuh communication.cuh float3_ops.cuh 
 	$(CC) $(FLAGS) -c $< -o $@
 
 test: network_test  

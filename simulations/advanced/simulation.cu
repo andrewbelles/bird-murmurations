@@ -18,20 +18,14 @@
 #include <iostream> 
 #include <cfloat> 
 
-namespace {
-static inline float3 get_max_bound(const float3* h_pos, int N);
-static inline float3& operator*=(float3& a, const float& c);
-}
-
-
 namespace sim {
 
 /*
  * Parent Initializer of Simulation 
  *
  * We assume: 
- *   Caller will exit nonzero on return of status != cudaSuccess, thus we do not worry 
- *   about gracefully freeing before returning 
+ *   Caller will exit nonzero on return of status != cudaSuccess, 
+ *   thus do not worry about gracefully freeing before returning 
  */ 
 cudaError_t 
 create(Simulation* sim, const float3* h_pos, const float* h_vel, 
@@ -101,8 +95,10 @@ create(Simulation* sim, const float3* h_pos, const float* h_vel,
   }
 
   float cell_size = (sim_params->min_dist <= 0.0) ? 1.0 : sim_params->min_dist; 
-  float3 max_bound = get_max_bound(h_pos, agent_count);
-  if ( (status = sim->grid.create(max_bound, cell_size, agent_count)) 
+  float extent = sim_params->world_extent * 2.0;
+  float3 min_bound = make_float3(-extent, -extent, -extent);
+  float3 max_bound = make_float3(extent, extent, extent); 
+  if ( (status = sim->grid.create(min_bound, max_bound, cell_size, agent_count)) 
       != cudaSuccess ) {
     std::cerr << "[ERROR] failed to create grid\n"; 
     return status; 
@@ -200,33 +196,3 @@ step(Simulation* sim, uint64_t epoch, const comms::Parameters& com_params,
 }
 
 } // end namespace sim 
-
-
-namespace {
-
-static inline float3 
-get_max_bound(const float3* h_pos, int N)
-{
-  float3 max = { -FLT_MAX, -FLT_MAX, -FLT_MAX }; 
-  
-  if ( h_pos && N > 0 ) {
-    for (int i = 0; i < N; i++) {
-      max.x = std::max(max.x, std::fabs(h_pos[i].x)); 
-      max.y = std::max(max.y, std::fabs(h_pos[i].y)); 
-      max.z = std::max(max.z, std::fabs(h_pos[i].z)); 
-    }
-    max *= 2.0; 
-  }
-  return max; 
-}
-
-static inline float3& 
-operator*=(float3& a, const float& c)
-{
-  a.x *= c; 
-  a.y *= c; 
-  a.z *= c; 
-  return a; 
-}
-
-}
