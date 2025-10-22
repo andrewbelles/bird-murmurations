@@ -8,7 +8,7 @@
 
 #include "agent.cuh"
 #include "environment.cuh"
-#include "network/float3_ops.cuh"
+#include "../network/float3_ops.cuh"
 
 #include <cuda_runtime.h> 
 #include <cstdio> 
@@ -105,9 +105,25 @@ compute_boids_accel(const float3 *d_pos, const float3 *d_vel,
     coh   = cohesion(avg_pos, sp, self_pos);
   }
 
+  auto boundary_force = [&](float r) -> float {
+    const float activation = sp.world_extent * (1.0 - sp.boundary_margin);
+    if ( std::abs(r) <= activation ) {
+      return 0.0; 
+    } 
+
+    const float d   = std::abs(r) - activation; 
+    const float dir = r > 0.0? -1.0 : 1.0; 
+    return sp.boundary_stiffness * d * dir; 
+  };
+  float3 wall = make_float3(
+    boundary_force(self_pos.x), 
+    boundary_force(self_pos.y), 
+    boundary_force(self_pos.z) 
+  ); 
+
   float time = static_cast<float>(epoch) * sp.dt; 
   float3 env = environment_force(self_pos, time, ep); 
-  float3 accel = clamp(sep + align + coh + env, -sp.max_accel, sp.max_accel);
+  float3 accel = clamp(sep + align + coh + env + wall, -sp.max_accel, sp.max_accel);
 
   d_accel[idx] = accel;
 }
@@ -126,9 +142,9 @@ integrate(float3* d_pos, float3* d_vel, const float3* d_accel,
   float3 vel = d_vel[idx], acc = d_accel[idx], pos = d_pos[idx];
   
   float3 tile = make_float3(
-    floorf((pos.x + extent) / (2.0 * extent)), 
-    floorf((pos.y + extent) / (2.0 * extent)),
-    floorf((pos.z + extent) / (2.0 * extent))
+    std::floor((pos.x + extent) / (2.0 * extent)), 
+    std::floor((pos.y + extent) / (2.0 * extent)),
+    std::floor((pos.z + extent) / (2.0 * extent))
   );
 
   vel += sp.dt * acc; 
