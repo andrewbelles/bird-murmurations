@@ -79,7 +79,13 @@ int main(int argc, char* argv[]) {
     .color      = make_float3(0.2, 0.7, 1.0),
     .point_size = 3.0, 
     .width      = 1280, 
-    .height     = 720 
+    .height     = 720, 
+    .camera     = (render::Camera){
+      .position     = {0.0, 0.0, 45.0},
+      .target        = {0.0, 0.0, 0.0},
+      .up            = {0.0, 1.0, 0.0},
+      .fov_y_degrees = 60.0
+    }
   };
 
   if ( (status = render::create(&render_context, render_conf)) != cudaSuccess ) {

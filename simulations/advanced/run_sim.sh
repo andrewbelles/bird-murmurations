@@ -8,16 +8,16 @@
 
 csv=logging.csv
 cnt=256
-time=1000
+time=30000
 
 echo "[RUN] Running Simulation:"
 echo -e "[RUN] ./simboids --env env.yaml --sim sim.yaml --logger $csv" 
-echo -e "      --agents $cnt --bufr 32 --steps 1000 --noise 0.05 --loss 0.05"
+echo -e "      --agents $cnt --bufr 32 --steps $time --noise 0.05 --loss 0.05"
 
 # Run simulation 
 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia \
   ./simboids --env env.yaml --sim sim.yaml --logger "$csv" \
-  --agents $cnt --bufr 32 --steps $time --noise 0.05 --loss 0.05
+  --agents "$cnt" --bufr 32 --steps "$time" --noise 0.05 --loss 0.05
 
 rc=$? 
 

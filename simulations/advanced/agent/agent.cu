@@ -123,7 +123,8 @@ compute_boids_accel(const float3 *d_pos, const float3 *d_vel,
 
   float time = static_cast<float>(epoch) * sp.dt; 
   float3 env = environment_force(self_pos, time, ep); 
-  float3 accel = clamp(sep + align + coh + env + wall, -sp.max_accel, sp.max_accel);
+  float3 accel = clamp(sep + align + coh + env, -sp.max_accel, sp.max_accel);
+  accel += wall;
 
   d_accel[idx] = accel;
 }
@@ -138,21 +139,13 @@ integrate(float3* d_pos, float3* d_vel, const float3* d_accel,
   }
 
   const SimulationParams sp = *sim_params;
-  const float extent = sp.world_extent; 
   float3 vel = d_vel[idx], acc = d_accel[idx], pos = d_pos[idx];
   
-  float3 tile = make_float3(
-    std::floor((pos.x + extent) / (2.0 * extent)), 
-    std::floor((pos.y + extent) / (2.0 * extent)),
-    std::floor((pos.z + extent) / (2.0 * extent))
-  );
-
   vel += sp.dt * acc; 
   vel = clamp(vel, -sp.max_vel, sp.max_vel);
   d_vel[idx] = vel; 
 
   pos += sp.dt * vel; 
-  pos -= (2.0 * extent) * tile;
   d_pos[idx] = pos; 
 }
 
